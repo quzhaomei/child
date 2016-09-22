@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sf.qzm.dao.RoleToMenusDao">
+ <cache eviction="LRU" flushInterval="60000" size="1024" readOnly="true"/> 
+	<resultMap type="com.sf.qzm.dto.admin.RoleToMenusDTO" id="roleToMenuDTO">
+		<id property="id" column="id" />
+		<result property="roleId" column="roleId" />
+		<result property="menuId" column="menuId"/>
+	</resultMap>
+	
+	<resultMap type="com.sf.qzm.dto.menu.PowerMenuDTO" id="powerMenu">
+		<id property="menuId" column="menuId" />
+		<result property="name" column="name" />
+		<result property="status" column="status" />
+		<collection property="childMenu" column="menuId2" ofType="com.sf.qzm.dto.menu.PowerMenuDTO" >
+			<id property="menuId" column="menuId2" />
+			<result property="name" column="name2" />
+			<result property="status" column="status2" />
+			<collection property="childMenu" column="menuId3" ofType="com.sf.qzm.dto.menu.PowerMenuDTO" >
+			<id property="menuId" column="menuId3" />
+			<result property="name" column="name3" />
+			<result property="status" column="status3" />
+		</collection>
+		</collection>
+	</resultMap>
+	
+	<insert id="save" useGeneratedKeys="true" keyProperty="userToRole.id">
+		insert into role_to_menus(id,roleId,menuId)
+		values
+		(#{roleToMenus.id},#{roleToMenus.roleId},#{roleToMenus.menuId})
+	</insert>
+	
+	<insert id="saveBatch">
+		<selectKey keyProperty="id" order="AFTER"  resultType="java.lang.Integer">  
+        SELECT LAST_INSERT_ID()  
+ 		 </selectKey> 
+		  insert into role_to_menus (roleId,menuId)   
+	    values  
+	    <foreach collection="menuIds"  item="menuId" index="index" separator="," >  
+	        (#{roleId},#{menuId})  
+	    </foreach>  
+	</insert>
+	
+	<delete id="delBatch">
+             delete from role_to_menus where 
+                  roleId=#{roleId} 
+	</delete>
+	
+	<update id="update"></update>
+	<delete id="delete">
+	</delete>
+	
+
+	<select id="getMenuTreeByRoleId" resultMap="powerMenu">
+		select am1.`menuId`,am1.`name`,
+	IF((select rtm.id from role_to_menus rtm where rtm.menuId=am1.`menuId` and rtm.roleId=#{roleId}) is null,0,1) status,
+	am2.`menuId` menuId2,am2.`code` code2,am2.`name` name2,
+	(case when am2.`menuId` is NULL then null 
+	when (select rtm.id from role_to_menus rtm where rtm.menuId=am2.`menuId` and rtm.roleId=#{roleId}) is null then 0
+	else 1 end) status2,
+	am3.`menuId` menuId3,am3.`code` code3,am3.`name` name3,
+	(case when am3.`menuId` is NULL then null 
+	when (select rtm.id from role_to_menus rtm where rtm.menuId=am3.`menuId` and rtm.roleId=#{roleId}) is null then 0
+	else 1 end) status3
+	from auto_menu am1 
+	left join auto_menu am2 on am1.`code`=am2.`parentCode` and am2.`type`=1
+	left join auto_menu am3 on am3.`parentCode`=am2.`code` and am3.`type`=2
+	where am1.`type`=0 
+	order by am1.sequence,am2.sequence,am3.sequence
+	</select>
+
+	
+	<select id="getByParam" resultMap="roleToMenuDTO">
+		select id,roleId,menuId from role_to_menus where 1=1
+		<if test="roleToMenus.id!=null">
+			and id=#{roleToMenus.id}
+		</if>
+		<if test="roleToMenus.roleId!=null">
+			and roleId=#{roleToMenus.roleId}
+		</if>
+		<if test="roleToMenus.menuId!=null">
+			and menuId=#{roleToMenus.menuId}
+		</if>
+	</select>
+	<select id="getCountByParam" resultType="int"></select>
+</mapper>  
